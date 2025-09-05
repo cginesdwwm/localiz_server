@@ -2,6 +2,7 @@ import express from "express";
 import { authMiddleware } from "../middlewares/auth.js";
 import {
   login,
+  logoutUser,
   register,
   forgotPassword,
   resetPassword,
@@ -17,6 +18,7 @@ const router = express.Router();
 router.post("/register", register);
 router.get("/verifyMail/:token", verifyMail);
 router.post("/login", login);
+router.delete("/deleteToken", logoutUser);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 
