@@ -219,11 +219,11 @@ export const login = async (req, res) => {
     if (!ok) return res.status(400).json({ message: "Identifiants invalides" });
 
     // Génération JWT
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET || "dev_secret",
-      { expiresIn: "7d" }
-    );
+    const token = jwt.sign({}, process.env.SECRET_KEY, {
+      subject: user._id.toString(),
+      expiresIn: "7d",
+      algorithm: "HS256",
+    });
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -235,7 +235,6 @@ export const login = async (req, res) => {
     // `secure: true` garantit que le cookie n'est envoyé que sur une connexion HTTPS.
     // En mode production, cette option est activée. En mode développement, elle est désactivée pour que l'API fonctionne en HTTP.
     // `sameSite` protège contre les attaques de type Cross-Site Request Forgery (CSRF).
-    // "Strict" envoie le cookie uniquement pour les requêtes provenant de la même origine que le site.
     // `maxAge` définit la durée de vie du cookie. Ici, il est configuré pour expirer après 7 jours.
 
     const publicUser = {
