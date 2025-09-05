@@ -228,7 +228,7 @@ export const login = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: "None",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours en millisecondes
     });
     // httpOnly: true => Empêche l'accès au cookie via le code JavaScript côté client (sécurité contre les attaques XSS).
@@ -266,7 +266,7 @@ export const login = async (req, res) => {
 export const logoutUser = async (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "None",
   });
   res.status(200).json({ message: "Déconnexion réussie" });
