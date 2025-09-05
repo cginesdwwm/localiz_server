@@ -42,8 +42,7 @@ app.use(express.json()); // parse le JSON dans le body des requêtes
 // Configuration CORS : autorise le front (localhost:5173) à appeler le backend
 app.use(
   cors({
-    origin: "http://localhost:5173",
-    // ou "*" pour autoriser toutes les origines (moins sécurisé en prod)
+    origin: [process.env.CLIENT_URL, process.env.DEPLOY_FRONT_URL], // Ajout des variables d'environnement pour gérer plusieurs origines
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type"],
     credentials: true,
