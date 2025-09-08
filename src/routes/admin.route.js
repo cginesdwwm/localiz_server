@@ -9,7 +9,7 @@ import express from "express";
 import User from "../models/user.schema.js";
 
 // Importation correcte des fonctions de middleware nommées
-import { authMiddleware, isAdmin } from "../middlewares/auth.js";
+import { authMiddleware, isAdmin } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 

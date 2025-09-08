@@ -39,10 +39,26 @@ const app = express();
 app.use(cookieParser()); // parse les cookies depuis la requête
 app.use(express.json()); // parse le JSON dans le body des requêtes
 
-// Configuration CORS : autorise le front (localhost:5173) à appeler le backend
+// Configuration CORS : autorise le front à appeler le backend.
+// En développement, on autorise également les origines localhost:*, ce qui
+// évite les problèmes quand Vite change de port (5173 -> 5174).
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.DEPLOY_FRONT_URL,
+].filter(Boolean);
 app.use(
   cors({
-    origin: [process.env.CLIENT_URL, process.env.DEPLOY_FRONT_URL], // Ajout des variables d'environnement pour gérer plusieurs origines
+    origin: (origin, callback) => {
+      // autoriser les requêtes sans origine (ex: tools, server-side)
+      if (!origin) return callback(null, true);
+      // autoriser les origines explicitement listées
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // autoriser localhost with any port in development
+      if (/^https?:\/\/localhost(:\d+)?$/.test(origin))
+        return callback(null, true);
+      // otherwise reject
+      return callback(new Error("CORS not allowed for origin: " + origin));
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type"],
     credentials: true,

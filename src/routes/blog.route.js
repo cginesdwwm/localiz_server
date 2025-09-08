@@ -1,10 +1,12 @@
 import express from "express";
-import { getBlogs } from "../controllers/blog.controller.js";
+import { createBlog, getAllBlogs } from "../controllers/blog.controller.js";
+import { protect } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-router.get("/", getBlogs);
+router.get("/", getAllBlogs);
+// on passe par le middleware avant d'aller sur le controller
+// si c'est valide, l'utilisateur est attaché à la requête
+router.post("/", protect, createBlog);
 
 export default router;
-
-// http://localhost:5000/blog

@@ -11,7 +11,7 @@ import blogRoutes from "./blog.route.js";
 import adminRoutes from "./admin.route.js";
 import usersRoutes from "./users.js"; // Import du routeur users
 
-import { authMiddleware, isAdmin } from "../middlewares/auth.js";
+import { authMiddleware, isAdmin } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 

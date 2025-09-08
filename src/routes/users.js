@@ -5,7 +5,7 @@
 
 import express from "express";
 import User from "../models/user.schema.js";
-import { authMiddleware } from "../middlewares/auth.js"; // L'importation doit se faire par le nom
+import { authMiddleware } from "../middlewares/authMiddleware.js"; // L'importation doit se faire par le nom
 
 const router = express.Router();
 
