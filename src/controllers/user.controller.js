@@ -278,13 +278,21 @@ export const logoutUser = async (req, res) => {
  */
 export const verifyMail = async (req, res) => {
   const { token } = req.params;
+  console.log(token);
 
   try {
     const decoded = jwt.verify(token, process.env.SECRET_KEY);
     const tempUser = await TempUser.findOne({ email: decoded.email, token });
+    console.log(tempUser);
 
     if (!tempUser) {
-      return res.redirect(`${process.env.CLIENT_URL}/register?message=error`);
+      return res.redirect(
+        `${
+          process.env.MODE === "development"
+            ? process.env.CLIENT_URL
+            : process.env.DEPLOY_FRONT_URL
+        }/register?message=error`
+      );
     }
 
     const newUser = new User({
@@ -306,13 +314,33 @@ export const verifyMail = async (req, res) => {
     // Envoi de l'email de succès
     await sendSuccessEmail(newUser.email, newUser.username);
 
-    res.redirect(`${process.env.CLIENT_URL}/register?message=success`);
+    res.redirect(
+      `${
+        process.env.MODE === "development"
+          ? process.env.CLIENT_URL
+          : process.env.DEPLOY_FRONT_URL
+      }/register?message=success`
+    );
   } catch (error) {
-    console.error(error);
+    console.error(error); // Utilisez console.error pour les erreurs
     if (error.name === "TokenExpiredError") {
-      return res.redirect(`${process.env.CLIENT_URL}/register?message=expired`);
+      // Gère le cas où le token de vérification a expiré
+      return res.redirect(
+        `${
+          process.env.MODE === "development"
+            ? process.env.CLIENT_URL
+            : process.env.DEPLOY_FRONT_URL
+        }/register?message=expired`
+      );
     }
-    return res.redirect(`${process.env.CLIENT_URL}/register?message=error`);
+    // Gère toutes les autres erreurs
+    return res.redirect(
+      `${
+        process.env.MODE === "development"
+          ? process.env.CLIENT_URL
+          : process.env.DEPLOY_FRONT_URL
+      }/register?message=error`
+    );
   }
 };
 
