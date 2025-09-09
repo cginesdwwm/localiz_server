@@ -337,7 +337,7 @@ export const verifyMail = async (req, res) => {
           process.env.MODE === "development"
             ? process.env.CLIENT_URL
             : process.env.DEPLOY_FRONT_URL
-        }/?message=error&clearRegister=1`
+        }/register?message=error&clearRegister=1`
       );
     }
 
@@ -370,7 +370,7 @@ export const verifyMail = async (req, res) => {
         process.env.MODE === "development"
           ? process.env.CLIENT_URL
           : process.env.DEPLOY_FRONT_URL
-      }/?message=success&clearRegister=1`
+      }/login?message=success&clearRegister=1`
     );
   } catch (error) {
     console.error(error); // Utilisez console.error pour les erreurs
@@ -381,7 +381,7 @@ export const verifyMail = async (req, res) => {
           process.env.MODE === "development"
             ? process.env.CLIENT_URL
             : process.env.DEPLOY_FRONT_URL
-        }/?message=expired&clearRegister=1`
+        }/register?message=expired&clearRegister=1`
       );
     }
     // Gère toutes les autres erreurs
@@ -390,7 +390,7 @@ export const verifyMail = async (req, res) => {
         process.env.MODE === "development"
           ? process.env.CLIENT_URL
           : process.env.DEPLOY_FRONT_URL
-      }/?message=error&clearRegister=1`
+      }/register?message=error&clearRegister=1`
     );
   }
 };
@@ -435,39 +435,10 @@ export const confirmEmail = async (req, res) => {
       console.error("Failed to delete TempUser:", delErr);
     }
 
-    // Génération et pose du cookie JWT pour connecter automatiquement l'utilisateur
-    const authToken = jwt.sign({}, process.env.SECRET_KEY, {
-      subject: newUser._id.toString(),
-      expiresIn: "7d",
-      algorithm: "HS256",
-    });
-
-    res.cookie("token", authToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "None",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
     // Envoi de l'email de succès (ce mail contient un lien vers /login)
     await sendSuccessEmail(newUser.email, newUser.username);
 
-    const publicUser = {
-      id: newUser._id,
-      firstName: newUser.firstName,
-      lastName: newUser.lastName,
-      username: newUser.username,
-      email: newUser.email,
-      phone: newUser.phone,
-      postalCode: newUser.postalCode,
-      birthday: newUser.birthday,
-      gender: newUser.gender,
-      role: newUser.role,
-    };
-
-    return res
-      .status(200)
-      .json({ user: publicUser, message: "Utilisateur confirmé" });
+    return res.status(200).json({ message: "Utilisateur confirmé" });
   } catch (error) {
     console.error(error);
     if (error.name === "TokenExpiredError") {
