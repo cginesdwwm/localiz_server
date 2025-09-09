@@ -17,6 +17,11 @@ import { authMiddleware, isAdmin } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
+// Minimal public health endpoint for uptime checks (no auth)
+router.get("/health", (req, res) => {
+  res.json({ ok: true, time: new Date().toISOString() });
+});
+
 // Routes publiques
 router.use("/blog", blogRoutes);
 router.use("/user", userRoutes);

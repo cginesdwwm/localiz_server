@@ -7,9 +7,14 @@
 
 import express from "express";
 import User from "../models/user.schema.js";
+import Deal from "../models/deal.schema.js";
+import Listing from "../models/listing.schema.js";
 
 // Importation correcte des fonctions de middleware nommées
 import { authMiddleware, isAdmin } from "../middlewares/authMiddleware.js";
+import mongoose from "mongoose";
+import fs from "fs";
+import path from "path";
 
 const router = express.Router();
 
@@ -20,8 +25,31 @@ const router = express.Router();
 router.use(authMiddleware, isAdmin);
 
 // Sanity check (maintenant protégé et réservé aux admins)
-router.get("/health", (req, res) => {
-  res.json({ ok: true, env: process.env.NODE_ENV || "development" });
+router.get("/health", async (req, res) => {
+  const env = process.env.NODE_ENV || "development";
+  const uptime = process.uptime();
+  const time = new Date().toISOString();
+
+  // DB check: mongoose.connection.readyState -> 1 = connected
+  let db = "unknown";
+  try {
+    const state = mongoose.connection.readyState;
+    db = state === 1 ? "ok" : "disconnected";
+  } catch (err) {
+    db = "error";
+  }
+
+  // Lire la version de package.json si disponible
+  let version = "-";
+  try {
+    const pkgPath = path.resolve(process.cwd(), "package.json");
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+    version = pkg.version || pkg?.version || "-";
+  } catch (err) {
+    version = "-";
+  }
+
+  res.json({ ok: db === "ok", env, time, uptime, db, version });
 });
 
 // Stats simples (réservé aux admins)
@@ -30,7 +58,102 @@ router.get("/stats", async (req, res) => {
   res.json({ users });
 });
 
-// Liste utilisateurs (pagination simple)
+// Overview: counts and simple last-7-days series for users and deals
+router.get("/overview", async (req, res) => {
+  const usersCount = await User.countDocuments();
+  const dealsCount = await Deal.countDocuments();
+  const listingsCount = await Listing.countDocuments();
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setDate(start.getDate() - 6); // 7 days including today
+
+  // aggregate users by day
+  const usersAgg = await User.aggregate([
+    { $match: { createdAt: { $gte: start } } },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const dealsAgg = await Deal.aggregate([
+    { $match: { createdAt: { $gte: start } } },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const listingsAgg = await Listing.aggregate([
+    { $match: { createdAt: { $gte: start } } },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  // Build arrays for last 7 days
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const s = d.toISOString().slice(0, 10);
+    days.push(s);
+  }
+
+  const usersMap = Object.fromEntries(usersAgg.map((r) => [r._id, r.count]));
+  const dealsMap = Object.fromEntries(dealsAgg.map((r) => [r._id, r.count]));
+
+  const usersSeries = days.map((day) => ({ day, count: usersMap[day] || 0 }));
+  const dealsSeries = days.map((day) => ({ day, count: dealsMap[day] || 0 }));
+  const listingsMap = Object.fromEntries(
+    listingsAgg.map((r) => [r._id, r.count])
+  );
+  const listingsSeries = days.map((day) => ({
+    day,
+    count: listingsMap[day] || 0,
+  }));
+
+  res.json({
+    users: usersCount,
+    deals: dealsCount,
+    listings: listingsCount,
+    usersSeries,
+    dealsSeries,
+    listingsSeries,
+  });
+});
+// Activité récente: derniers utilisateurs inscrits, bons plans et annonces (jusqu'à 25)
+router.get("/recent", async (req, res) => {
+  const recentUsers = await User.find()
+    .sort({ createdAt: -1 })
+    .limit(25)
+    .select("username email createdAt");
+
+  const recentDeals = await Deal.find()
+    .sort({ createdAt: -1 })
+    .limit(25)
+    .select("title author createdAt")
+    .populate("author", "username email");
+
+  const recentListings = await Listing.find()
+    .sort({ createdAt: -1 })
+    .limit(25)
+    .select("title owner createdAt")
+    .populate("owner", "username email");
+
+  res.json({ recentUsers, recentDeals, recentListings });
+});
+
+// Liste utilisateurs
 router.get("/users", async (req, res) => {
   const page = Math.max(parseInt(req.query.page) || 1, 1);
   const limit = Math.min(parseInt(req.query.limit) || 20, 100);

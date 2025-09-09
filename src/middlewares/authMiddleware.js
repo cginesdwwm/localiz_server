@@ -13,11 +13,22 @@ import User from "../models/user.schema.js"; // Importe le modèle d'utilisateur
 // à req.user. Retourne 400 si aucun token ou token invalide.
 export const protect = async (req, res, next) => {
   // récupération du token attaché à la requête HTTP entrante
-  const token = req.cookies?.token;
+  // Primary source: HttpOnly cookie (set by login). Fallback: Authorization header (Bearer token)
+  let token = req.cookies?.token;
+  if (!token) {
+    const authHeader = req.headers?.authorization || req.headers?.Authorization;
+    if (
+      authHeader &&
+      typeof authHeader === "string" &&
+      authHeader.startsWith("Bearer ")
+    ) {
+      token = authHeader.split(" ")[1];
+    }
+  }
 
   // action si aucun token présent
   if (!token) {
-    return res.status(400).json({ message: "Accès interdit. Aucun token." });
+    return res.status(401).json({ message: "Accès interdit. Aucun token." });
   }
 
   try {
@@ -47,7 +58,7 @@ export const protect = async (req, res, next) => {
   } catch (error) {
     // action si token invalide
     console.error(error);
-    return res.status(400).json({ message: "Accès interdit. Token invalide." });
+    return res.status(401).json({ message: "Accès interdit. Token invalide." });
   }
 };
 

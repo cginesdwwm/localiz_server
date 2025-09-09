@@ -276,7 +276,9 @@ export const login = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "None",
+      // In development we use a more permissive SameSite so the cookie is sent from localhost:5173
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      path: "/",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours en millisecondes
     });
     // httpOnly: true => Empêche l'accès au cookie via le code JavaScript côté client (sécurité contre les attaques XSS).
@@ -314,7 +316,8 @@ export const logoutUser = async (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "None",
+    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+    path: "/",
   });
   res.status(200).json({ message: "Déconnexion réussie" });
 };
