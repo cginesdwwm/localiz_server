@@ -23,6 +23,7 @@ import cors from "cors";
 
 // permet de préciser où sont les routes (index des routes)
 import routes from "./routes/index.js";
+import errorFormat from "./middlewares/errorFormat.js";
 
 // récupère la connexion à la base de données
 import { connectDB } from "./lib/db.js";
@@ -67,6 +68,9 @@ app.use(
 
 // on monte les routes : toutes les routes définies dans ./routes
 app.use("/", routes);
+
+// Middleware de formatage des erreurs (doit venir après les routes)
+app.use(errorFormat);
 
 // démarre le serveur et connecte la base de données
 app.listen(PORT, () => {

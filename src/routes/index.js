@@ -10,6 +10,8 @@ import userRoutes from "./user.route.js";
 import blogRoutes from "./blog.route.js";
 import adminRoutes from "./admin.route.js";
 import usersRoutes from "./users.js"; // Import du routeur users
+import dealRoutes from "./deal.route.js";
+import listingRoutes from "./listing.route.js";
 
 import { authMiddleware, isAdmin } from "../middlewares/authMiddleware.js";
 
@@ -18,6 +20,8 @@ const router = express.Router();
 // Routes publiques
 router.use("/blog", blogRoutes);
 router.use("/user", userRoutes);
+router.use("/deals", dealRoutes);
+router.use("/listings", listingRoutes);
 
 // Routes protégées avec le middleware d'authentification
 // Montez le routeur "users" sur le chemin "/users"

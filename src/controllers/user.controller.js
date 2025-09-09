@@ -258,11 +258,13 @@ export const login = async (req, res) => {
     }
 
     if (!user)
-      return res.status(400).json({ message: "Identifiants invalides" });
+      return res
+        .status(400)
+        .json({ message: "Nom d'utilisateur ou email invalide" });
 
     // Vérification mot de passe
     const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.status(400).json({ message: "Identifiants invalides" });
+    if (!ok) return res.status(400).json({ message: "Mot de passe incorrect" });
 
     // Génération JWT
     const token = jwt.sign({}, process.env.SECRET_KEY, {
