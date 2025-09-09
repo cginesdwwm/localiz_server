@@ -6,7 +6,7 @@ const tempUserSchema = new mongoose.Schema(
     lastName: { type: String, required: true },
     username: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
-    phone: { type: String, required: true, unique: true }, // Rendu obligatoire et unique
+    phone: { type: String, required: true, unique: true },
     postalCode: { type: String, required: true },
     birthday: { type: Date, required: true },
     gender: { type: String, required: true },
@@ -19,8 +19,8 @@ const tempUserSchema = new mongoose.Schema(
   }
 );
 
-// Ajout d'un index avec une durée de vie (TTL) pour supprimer les utilisateurs non vérifiés après 2 minutes
-tempUserSchema.index({ createdAt: 1 }, { expireAfterSeconds: 120 });
+// Ajout d'un index avec une durée de vie (TTL) pour supprimer les utilisateurs non vérifiés après 1 heure
+tempUserSchema.index({ createdAt: 1 }, { expireAfterSeconds: 3600 });
 
 const TempUser = mongoose.model("TempUser", tempUserSchema);
 

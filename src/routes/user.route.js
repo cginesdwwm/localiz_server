@@ -7,6 +7,7 @@ import {
   forgotPassword,
   resetPassword,
   verifyMail,
+  confirmEmail,
   changePassword,
   deleteAccount,
   getMe,
@@ -17,6 +18,7 @@ const router = express.Router();
 // Routes publiques
 router.post("/register", register);
 router.get("/verifyMail/:token", verifyMail);
+router.post("/confirm-email", confirmEmail);
 router.post("/login", login);
 router.post("/logout", logoutUser);
 router.post("/forgot-password", forgotPassword);

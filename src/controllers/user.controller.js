@@ -37,7 +37,7 @@ dotenv.config();
  * Crée un jeton JWT avec l'email pour la vérification de l'inscription.
  */
 const createTokenEmail = (email) => {
-  return jwt.sign({ email }, process.env.SECRET_KEY, { expiresIn: "120s" });
+  return jwt.sign({ email }, process.env.SECRET_KEY, { expiresIn: "3600s" });
 };
 
 /**
@@ -89,6 +89,26 @@ export const register = async (req, res) => {
       agreeToTerms,
       password,
     } = req.body;
+
+    // Validation explicite des champs obligatoires pour renvoyer des erreurs claires
+    const missing = [];
+    if (!firstName) missing.push("firstName");
+    if (!lastName) missing.push("lastName");
+    if (!username) missing.push("username");
+    if (!email) missing.push("email");
+    if (!password) missing.push("password");
+    // Ces champs sont requis par le schéma TempUser
+    if (!phone) missing.push("phone");
+    if (!postalCode) missing.push("postalCode");
+    if (!birthday) missing.push("birthday");
+    if (!gender) missing.push("gender");
+
+    if (missing.length > 0) {
+      return res.status(400).json({
+        message: "Champs requis manquants",
+        missing,
+      });
+    }
 
     // Vérification du consentement RGPD
     if (!agreeToTerms) {
@@ -157,6 +177,25 @@ export const register = async (req, res) => {
       }
     }
 
+    // Validation côté serveur : âge minimum 16 ans
+    if (birthday) {
+      const birthDate = new Date(birthday);
+      if (isNaN(birthDate.getTime())) {
+        return res.status(400).json({ message: "Date de naissance invalide." });
+      }
+      const now = new Date();
+      let age = now.getFullYear() - birthDate.getFullYear();
+      const m = now.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && now.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      if (age < 16) {
+        return res.status(400).json({
+          message: "Vous devez avoir au moins 16 ans pour vous inscrire.",
+        });
+      }
+    }
+
     // Traitement des données
     const hashedPassword = await bcrypt.hash(password, 10);
     const token = createTokenEmail(email);
@@ -180,10 +219,17 @@ export const register = async (req, res) => {
     // Envoi de l'email de confirmation d'inscription
     await sendConfirmationEmail(email, token);
 
-    // Envoi de la réponse au client
+    // Calcul de la date d'expiration du token (en ms) à partir du JWT
+    const decoded = jwt.decode(token);
+    const expiresAt =
+      decoded && decoded.exp ? decoded.exp * 1000 : Date.now() + 3600 * 1000;
+
+    // Envoi de la réponse au client avec l'expiration afin que le front puisse
+    // afficher un compte à rebours exact.
     return res.status(201).json({
       message:
         "Veuillez vérifier votre boîte mail pour confirmer votre inscription.",
+      expiresAt,
     });
   } catch (error) {
     console.error(error);
@@ -291,7 +337,7 @@ export const verifyMail = async (req, res) => {
           process.env.MODE === "development"
             ? process.env.CLIENT_URL
             : process.env.DEPLOY_FRONT_URL
-        }/register?message=error`
+        }/?message=error&clearRegister=1`
       );
     }
 
@@ -309,7 +355,12 @@ export const verifyMail = async (req, res) => {
     });
 
     await newUser.save();
-    await TempUser.deleteOne({ email: tempUser.email });
+    try {
+      const delRes = await TempUser.deleteOne({ _id: tempUser._id });
+      console.log("TempUser.deleteOne result:", delRes);
+    } catch (delErr) {
+      console.error("Failed to delete TempUser:", delErr);
+    }
 
     // Envoi de l'email de succès
     await sendSuccessEmail(newUser.email, newUser.username);
@@ -319,7 +370,7 @@ export const verifyMail = async (req, res) => {
         process.env.MODE === "development"
           ? process.env.CLIENT_URL
           : process.env.DEPLOY_FRONT_URL
-      }/register?message=success`
+      }/?message=success&clearRegister=1`
     );
   } catch (error) {
     console.error(error); // Utilisez console.error pour les erreurs
@@ -330,7 +381,7 @@ export const verifyMail = async (req, res) => {
           process.env.MODE === "development"
             ? process.env.CLIENT_URL
             : process.env.DEPLOY_FRONT_URL
-        }/register?message=expired`
+        }/?message=expired&clearRegister=1`
       );
     }
     // Gère toutes les autres erreurs
@@ -339,8 +390,90 @@ export const verifyMail = async (req, res) => {
         process.env.MODE === "development"
           ? process.env.CLIENT_URL
           : process.env.DEPLOY_FRONT_URL
-      }/register?message=error`
+      }/?message=error&clearRegister=1`
     );
+  }
+};
+
+/**
+ * confirmEmail : API utilisée par le front.
+ * Attend { token } en POST body ou ?token=... en GET/POST.
+ * Renvoie JSON au front pour que la page côté client gère la navigation.
+ */
+export const confirmEmail = async (req, res) => {
+  const token = req.body?.token || req.query?.token;
+  if (!token) return res.status(400).json({ message: "Token manquant" });
+
+  try {
+    const decoded = jwt.verify(token, process.env.SECRET_KEY);
+    const tempUser = await TempUser.findOne({ email: decoded.email, token });
+
+    if (!tempUser) {
+      return res
+        .status(400)
+        .json({ message: "Token invalide ou utilisateur introuvable" });
+    }
+
+    const newUser = new User({
+      firstName: tempUser.firstName,
+      lastName: tempUser.lastName,
+      username: tempUser.username,
+      email: tempUser.email,
+      phone: tempUser.phone,
+      postalCode: tempUser.postalCode,
+      birthday: tempUser.birthday,
+      gender: tempUser.gender,
+      agreeToTerms: tempUser.agreeToTerms,
+      password: tempUser.password,
+    });
+
+    await newUser.save();
+    try {
+      const delRes = await TempUser.deleteOne({ _id: tempUser._id });
+      console.log("TempUser.deleteOne result:", delRes);
+    } catch (delErr) {
+      console.error("Failed to delete TempUser:", delErr);
+    }
+
+    // Génération et pose du cookie JWT pour connecter automatiquement l'utilisateur
+    const authToken = jwt.sign({}, process.env.SECRET_KEY, {
+      subject: newUser._id.toString(),
+      expiresIn: "7d",
+      algorithm: "HS256",
+    });
+
+    res.cookie("token", authToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "None",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    // Envoi de l'email de succès (ce mail contient un lien vers /login)
+    await sendSuccessEmail(newUser.email, newUser.username);
+
+    const publicUser = {
+      id: newUser._id,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
+      username: newUser.username,
+      email: newUser.email,
+      phone: newUser.phone,
+      postalCode: newUser.postalCode,
+      birthday: newUser.birthday,
+      gender: newUser.gender,
+      role: newUser.role,
+    };
+
+    return res
+      .status(200)
+      .json({ user: publicUser, message: "Utilisateur confirmé" });
+  } catch (error) {
+    console.error(error);
+    if (error.name === "TokenExpiredError") {
+      return res.status(410).json({ message: "Token expiré" });
+    }
+    return res.status(500).json({ message: "Erreur interne" });
   }
 };
 

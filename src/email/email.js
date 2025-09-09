@@ -13,19 +13,30 @@ const transporter = nodemailer.createTransport({
 
 // Fonction pour envoyer l'email de confirmation d'inscription
 export const sendConfirmationEmail = async (email, token) => {
+  const confirmUrl = `${process.env.CLIENT_URL.replace(
+    /\/+$/,
+    ""
+  )}/confirm-email?token=${token}`;
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
     subject: "Confirmation d'inscription",
     html: `<p>Bienvenue chez Localiz ! Pour valider la création de votre compte, veuillez confirmer votre adresse e-mail en cliquant sur le lien suivant :</p>
-           <a href=${
-             process.env.MODE === "development"
-               ? process.env.API_URL
-               : process.env.DEPLOY_BACK_URL
-           }/user/verifyMail/${token}>Confirmer mon adresse e-mail</a>`,
+           <a href="${confirmUrl}">Confirmer mon adresse e-mail</a>`,
   };
 
-  await transporter.sendMail(mailOptions);
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("sendConfirmationEmail result:", {
+      accepted: info.accepted,
+      rejected: info.rejected,
+      messageId: info.messageId,
+    });
+    return info;
+  } catch (err) {
+    console.error("sendConfirmationEmail error:", err);
+    throw err;
+  }
 };
 
 // Fonction pour envoyer l'email d'inscription réussie
