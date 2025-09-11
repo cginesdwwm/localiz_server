@@ -19,6 +19,8 @@ const userSchema = new mongoose.Schema(
     agreeToTerms: { type: Boolean, required: true, default: false },
     password: { type: String, required: true },
     role: { type: String, enum: ["user", "admin"], default: "user" },
+    // User preferences
+    theme: { type: String, enum: ["dark", "light"], default: "dark" },
     // Champs pour la réinitialisation de mot de passe
     resetPasswordToken: String,
     resetPasswordExpires: Date,

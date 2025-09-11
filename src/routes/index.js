@@ -8,6 +8,7 @@ import express from "express";
 
 import userRoutes from "./user.route.js";
 import blogRoutes from "./blog.route.js";
+import ratingRoutes from "./rating.route.js";
 import adminRoutes from "./admin.route.js";
 import usersRoutes from "./users.js"; // Import du routeur users
 import dealRoutes from "./deal.route.js";
@@ -25,6 +26,7 @@ router.get("/health", (req, res) => {
 // Routes publiques
 router.use("/blog", blogRoutes);
 router.use("/user", userRoutes);
+router.use("/rating", ratingRoutes);
 router.use("/deals", dealRoutes);
 router.use("/listings", listingRoutes);
 

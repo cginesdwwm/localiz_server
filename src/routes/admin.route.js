@@ -159,13 +159,35 @@ router.get("/users", async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 20, 100);
   const skip = (page - 1) * limit;
 
+  const q = (req.query.q || "").trim();
+  const sort = req.query.sort || "createdAt";
+  const dir = req.query.dir === "desc" ? -1 : 1;
+
+  // build filter
+  const filter = {};
+  if (q) {
+    // search by username, email or id
+    filter.$or = [
+      { username: { $regex: q, $options: "i" } },
+      { email: { $regex: q, $options: "i" } },
+      { _id: q },
+    ];
+  }
+
+  const sortObj = {};
+  // protect against arbitrary fields and allow 'id' to map to _id
+  const allowedSort = ["username", "email", "createdAt", "role", "id"];
+  const key =
+    sort === "id" ? "_id" : allowedSort.includes(sort) ? sort : "createdAt";
+  sortObj[key] = dir;
+
   const [items, total] = await Promise.all([
-    User.find()
-      .sort({ createdAt: -1 })
+    User.find(filter)
+      .sort(sortObj)
       .skip(skip)
       .limit(limit)
-      .select("-password"),
-    User.countDocuments(),
+      .select("username email role createdAt"),
+    User.countDocuments(filter),
   ]);
 
   res.json({ items, total, page, pages: Math.ceil(total / limit) });

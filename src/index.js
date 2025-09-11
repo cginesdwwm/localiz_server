@@ -57,7 +57,7 @@ app.use(
       // autoriser localhost with any port in development
       if (/^https?:\/\/localhost(:\d+)?$/.test(origin))
         return callback(null, true);
-      // otherwise reject
+      // sinon, rejeter
       return callback(new Error("CORS not allowed for origin: " + origin));
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
