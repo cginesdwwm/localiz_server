@@ -13,6 +13,12 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.warn(
+    "Warning: EMAIL_USER or EMAIL_PASS is not set — emails will likely fail to send."
+  );
+}
+
 // Helper: unified HTML email template
 // Path to client logo (relative to project root). We'll attach it inline if present.
 const logoPath = path.join(
@@ -27,6 +33,31 @@ const logoPath = path.join(
 // Use env if provided; otherwise leave undefined so the code can fall back to the bundled local logo file
 const publicLogoUrl = process.env.EMAIL_LOGO_URL;
 
+// Palette used across email templates (keep similar to client variables)
+const PALETTE = {
+  primary: process.env.EMAIL_PRIMARY_COLOR || "#1b9476",
+  accent: process.env.EMAIL_ACCENT_COLOR || "#a78bfa",
+  text: "#0f172a",
+  muted: "#334155",
+  footerText: "#64748b",
+  bg: "#f6f9fc",
+  containerBg: "#ffffff",
+  containerShadow: "0 4px 20px rgba(11,22,40,0.08)",
+};
+
+function stripHtmlToText(html) {
+  if (!html) return "";
+  return html
+    .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .trim();
+}
+// Note: PALETTE and stripHtmlToText are defined above once.
+
 function buildEmailTemplate({
   title,
   preheader,
@@ -40,7 +71,7 @@ function buildEmailTemplate({
 }) {
   const year = new Date().getFullYear();
   const safeCta = ctaUrl
-    ? `background-color:#2563eb;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px;display:inline-block;`
+    ? `background-color:${PALETTE.primary};color:#fff;text-decoration:none;padding:12px 18px;border-radius:12px;display:inline-block;`
     : "";
 
   return `
@@ -51,14 +82,24 @@ function buildEmailTemplate({
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>${title || "Localiz"}</title>
     <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:#f6f9fc; margin:0; padding:16px; }
-  .container { max-width:600px; margin:0 auto; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow:0 4px 20px rgba(11,22,40,0.08); }
-  .header { background: linear-gradient(90deg,#2563eb,#7c3aed); color:#fff; padding:0 16px; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:${
+    PALETTE.bg
+  }; margin:0; padding:16px; }
+  .container { max-width:600px; margin:0 auto; background:${
+    PALETTE.containerBg
+  }; border-radius:16px; overflow:hidden; box-shadow:${
+    PALETTE.containerShadow
+  }; }
+  .header { background: linear-gradient(90deg,${PALETTE.primary},${
+    PALETTE.accent
+  }); color:#fff; padding:0 16px; }
   .logo { font-weight:700; font-size:18px; }
-  .content { padding:0 16px 12px 16px; color:#0f172a; }
-  h1 { margin:0 0 12px 0; font-size:20px; color:#0f172a; }
-  p { margin:0 0 12px 0; line-height:1.45; color:#334155; }
-  .footer { padding:12px 16px; font-size:13px; color:#64748b; background:#fbfdfe; }
+  .content { padding:0 16px 12px 16px; color:${PALETTE.text}; }
+  h1 { margin:0 0 12px 0; font-size:20px; color:${PALETTE.text}; }
+  p { margin:0 0 12px 0; line-height:1.45; color:${PALETTE.muted}; }
+  .footer { padding:12px 16px; font-size:13px; color:${
+    PALETTE.footerText
+  }; background:#fbfdfe; }
       .preheader { display:none !important; visibility:hidden; mso-hide:all; font-size:1px; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; }
       @media (prefers-color-scheme: dark) {
         body { background:#0b1220; }
@@ -114,6 +155,7 @@ export const sendConfirmationEmail = async (email, token) => {
     from: process.env.EMAIL_USER,
     to: email,
     subject: "Confirmez votre e-mail — Localiz",
+    text: "Merci d'avoir créé un compte Localiz. Pour valider votre adresse e-mail, cliquez sur le lien ci-dessous.", // Added text option
   };
 
   if (publicLogoUrl) {
@@ -182,6 +224,9 @@ export const sendSuccessEmail = async (email, username) => {
     from: process.env.EMAIL_USER,
     to: email,
     subject: "Bienvenue — compte activé",
+    text: `Bonjour ${
+      username || "utilisateur"
+    },\n\nVotre inscription a été confirmée avec succès. Vous pouvez maintenant vous connecter à votre compte Localiz.`, // Added text option
   };
   if (publicLogoUrl) {
     mailOptions.html = buildEmailTemplate({
@@ -231,20 +276,13 @@ export const sendSuccessEmail = async (email, username) => {
 export const sendResetPasswordEmail = async (toEmail, token) => {
   const base = (process.env.CLIENT_URL || "").replace(/\/+$/g, "");
   const resetUrl = `${base}/reset-password/${token}`;
-  const html = buildEmailTemplate({
-    title: "Réinitialisation de mot de passe — Localiz",
-    preheader: "Instructions pour réinitialiser votre mot de passe.",
-    heading: "Réinitialisation de mot de passe",
-    bodyHtml: `<p>Nous avons reçu une demande de réinitialisation de mot de passe pour ce compte.</p>
-               <p>Si vous l'avez demandée, cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe. Ce lien expirera dans une heure.</p>`,
-    ctaText: "Réinitialiser mon mot de passe",
-    ctaUrl: resetUrl,
-  });
+  // buildEmailTemplate will be called below when composing mailOptions
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: toEmail,
     subject: "Réinitialisez votre mot de passe — Localiz",
+    text: "Instructions pour réinitialiser votre mot de passe. Cliquez sur le lien ci-dessous.", // Added text option
   };
   if (publicLogoUrl) {
     mailOptions.html = buildEmailTemplate({
@@ -297,19 +335,11 @@ export const sendResetPasswordEmail = async (toEmail, token) => {
 export const sendPasswordResetSuccessEmail = async (email, username) => {
   const base = (process.env.CLIENT_URL || "").replace(/\/+$/g, "");
   const loginUrl = `${base}/login`;
-  const html = buildEmailTemplate({
-    title: "Mot de passe modifié — Localiz",
-    preheader: "Votre mot de passe a été mis à jour.",
-    heading: `Bonjour ${username || "utilisateur"},`,
-    bodyHtml: `<p>Votre mot de passe a été modifié avec succès. Si vous n'êtes pas à l'origine de ce changement, contactez le support immédiatement.</p>`,
-    ctaText: "Se connecter",
-    ctaUrl: loginUrl,
-  });
-
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
     subject: "Votre mot de passe a été mis à jour — Localiz",
+    text: "Votre mot de passe a été modifié avec succès. Si vous n'êtes pas à l'origine de ce changement, contactez le support immédiatement.", // Added text option
   };
   if (publicLogoUrl) {
     mailOptions.html = buildEmailTemplate({
