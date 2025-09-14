@@ -13,6 +13,7 @@ import {
   confirmEmail,
   changePassword,
   deleteAccount,
+  requestAccountDeletion,
   getMe,
 } from "../controllers/user.controller.js";
 
@@ -55,5 +56,6 @@ router.post("/reset-password/:token", resetPassword);
 router.get("/me", authMiddleware, getMe);
 router.put("/change-password", authMiddleware, changePassword);
 router.delete("/me", authMiddleware, deleteAccount);
+router.post("/me/delete-request", authMiddleware, requestAccountDeletion);
 
 export default router;

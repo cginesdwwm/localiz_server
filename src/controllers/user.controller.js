@@ -599,3 +599,35 @@ export const deleteAccount = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
+
+/* Demande de suppression - marque le compte comme désactivé et enregistre la raison */
+export const requestAccountDeletion = async (req, res) => {
+  try {
+    const { reason, details } = req.body || {};
+    const userId = req.userId;
+
+    if (!userId) return res.status(401).json({ message: "Non authentifié" });
+
+    const user = await User.findById(userId);
+    if (!user)
+      return res.status(404).json({ message: "Utilisateur non trouvé." });
+
+    user.disabled = true;
+    user.deletionRequestedAt = new Date();
+    if (reason) user.deletionReason = reason;
+    if (details) user.deletionDetails = details;
+
+    await user.save();
+
+    // TODO: Optionnellement, pousser un job pour supprimer définitivement après 30 jours
+
+    return res
+      .status(200)
+      .json({ message: "Demande de suppression enregistrée." });
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "Erreur serveur", error: error.message });
+  }
+};

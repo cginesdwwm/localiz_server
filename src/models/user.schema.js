@@ -24,6 +24,11 @@ const userSchema = new mongoose.Schema(
     // Champs pour la réinitialisation de mot de passe
     resetPasswordToken: String,
     resetPasswordExpires: Date,
+    // Demande de suppression et état du compte
+    disabled: { type: Boolean, default: false },
+    deletionRequestedAt: Date,
+    deletionReason: String,
+    deletionDetails: String,
   },
   {
     timestamps: true, // Ajoute automatiquement createdAt et updatedAt
