@@ -8,6 +8,7 @@ const tempUserSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     phone: { type: String, required: true, unique: true },
     postalCode: { type: String, required: true },
+    city: { type: String, default: null },
     birthday: { type: Date, required: true },
     gender: { type: String, required: true },
     agreeToTerms: { type: Boolean, required: true, default: false },

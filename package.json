@@ -4,7 +4,8 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "seed:postal": "node ./src/scripts/seedPostalCodes.mjs"
   },
   "type": "module",
   "keywords": [],
@@ -27,6 +28,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.17.2",
     "multer": "^2.0.2",
+    "sharp": "^0.32.4",
     "nodemailer": "^7.0.5"
   }
 }

@@ -13,14 +13,20 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     phone: { type: String, required: true, unique: true },
     postalCode: { type: String, required: true },
+    city: { type: String, default: null },
+    profilePhoto: { type: String, default: null },
     birthday: { type: Date, required: true },
     gender: { type: String, required: true },
+    bio: { type: String, default: "" },
     // profilePhoto: { type: String, required: true },
     agreeToTerms: { type: Boolean, required: true, default: false },
     password: { type: String, required: true },
     role: { type: String, enum: ["user", "admin"], default: "user" },
     // User preferences
     theme: { type: String, enum: ["dark", "light"], default: "dark" },
+    // Preferences about what to display publicly
+    showFirstName: { type: Boolean, default: false },
+    showCity: { type: Boolean, default: false },
     // Champs pour la réinitialisation de mot de passe
     resetPasswordToken: String,
     resetPasswordExpires: Date,

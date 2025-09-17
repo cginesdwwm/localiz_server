@@ -13,6 +13,7 @@ import adminRoutes from "./admin.route.js";
 import usersRoutes from "./users.js"; // Import du routeur users
 import dealRoutes from "./deal.route.js";
 import listingRoutes from "./listing.route.js";
+import utilsRoutes from "./utils.js";
 
 import { authMiddleware, isAdmin } from "../middlewares/authMiddleware.js";
 
@@ -26,6 +27,7 @@ router.get("/health", (req, res) => {
 // Routes publiques
 router.use("/blog", blogRoutes);
 router.use("/user", userRoutes);
+router.use("/utils", utilsRoutes);
 router.use("/rating", ratingRoutes);
 router.use("/deals", dealRoutes);
 router.use("/listings", listingRoutes);
