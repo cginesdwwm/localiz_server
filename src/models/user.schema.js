@@ -7,16 +7,18 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
+    // First/last name made optional at registration; users can fill later
+    firstName: { type: String },
+    lastName: { type: String },
     username: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
-    phone: { type: String, required: true, unique: true },
-    postalCode: { type: String, required: true },
+    // Phone and postalCode optional during registration; phone unique but sparse
+    phone: { type: String, unique: true, sparse: true },
+    postalCode: { type: String },
     city: { type: String, default: null },
     profilePhoto: { type: String, default: null },
     birthday: { type: Date, required: true },
-    gender: { type: String, required: true },
+    gender: { type: String },
     bio: { type: String, default: "" },
     // profilePhoto: { type: String, required: true },
     agreeToTerms: { type: Boolean, required: true, default: false },

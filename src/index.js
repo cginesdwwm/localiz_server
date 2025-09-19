@@ -67,7 +67,8 @@ app.use(
 );
 
 // on monte les routes : toutes les routes définies dans ./routes
-app.use("/", routes);
+// Expose them under `/api` so client can call `/api/...` paths
+app.use("/api", routes);
 
 // Middleware de formatage des erreurs (doit venir après les routes)
 app.use(errorFormat);

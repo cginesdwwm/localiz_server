@@ -2,15 +2,19 @@ import mongoose from "mongoose";
 
 const tempUserSchema = new mongoose.Schema(
   {
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
+    // Optional at registration; collected later in ManageAccount
+    firstName: { type: String },
+    lastName: { type: String },
     username: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
-    phone: { type: String, required: true, unique: true },
-    postalCode: { type: String, required: true },
+    // Phone and postalCode are optional during registration
+    // phone kept unique but sparse so null/undefined values are allowed
+    phone: { type: String, unique: true, sparse: true },
+    postalCode: { type: String },
     city: { type: String, default: null },
+    // birthday remains required for age check; gender is optional
     birthday: { type: Date, required: true },
-    gender: { type: String, required: true },
+    gender: { type: String },
     agreeToTerms: { type: Boolean, required: true, default: false },
     password: { type: String, required: true },
     token: { type: String, required: true },

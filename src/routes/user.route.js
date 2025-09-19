@@ -24,13 +24,19 @@ router.post(
   "/register",
   authRateLimiter,
   [
-    body("firstName").isLength({ min: 2 }).withMessage("Prénom invalide"),
-    body("lastName").isLength({ min: 2 }).withMessage("Nom invalide"),
     body("username").isLength({ min: 4 }).withMessage("Pseudo invalide"),
     body("email").isEmail().withMessage("Email invalide"),
     body("password")
       .isLength({ min: 8 })
       .withMessage("Mot de passe trop court"),
+    body("birthday")
+      .notEmpty()
+      .withMessage("Date de naissance requise")
+      .isISO8601()
+      .withMessage("Date de naissance invalide"),
+    body("agreeToTerms")
+      .custom((value) => value === true || value === "true")
+      .withMessage("Vous devez accepter les conditions pour continuer."),
   ],
   validateRequest,
   register

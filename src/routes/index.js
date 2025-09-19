@@ -14,6 +14,7 @@ import usersRoutes from "./users.js"; // Import du routeur users
 import dealRoutes from "./deal.route.js";
 import listingRoutes from "./listing.route.js";
 import utilsRoutes from "./utils.js";
+import contactRoutes from "./contact.route.js";
 
 import { authMiddleware, isAdmin } from "../middlewares/authMiddleware.js";
 
@@ -28,6 +29,7 @@ router.get("/health", (req, res) => {
 router.use("/blog", blogRoutes);
 router.use("/user", userRoutes);
 router.use("/utils", utilsRoutes);
+router.use("/contact", contactRoutes);
 router.use("/rating", ratingRoutes);
 router.use("/deals", dealRoutes);
 router.use("/listings", listingRoutes);

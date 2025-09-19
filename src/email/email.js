@@ -33,16 +33,25 @@ const logoPath = path.join(
 // Use env if provided; otherwise leave undefined so the code can fall back to the bundled local logo file
 const publicLogoUrl = process.env.EMAIL_LOGO_URL;
 
-// Palette used across email templates (keep similar to client variables)
+// Palette used across email templates (keeps parity with client theme variables)
+// Values mirror `client/src/index.css` defaults (can be overridden via env)
 const PALETTE = {
+  // primary CTA color (matches --btn-cta-bg)
   primary: process.env.EMAIL_PRIMARY_COLOR || "#1b9476",
+  // secondary/accent color (matches chart-color-4 / accent used in UI)
   accent: process.env.EMAIL_ACCENT_COLOR || "#a78bfa",
-  text: "#0f172a",
-  muted: "#334155",
-  footerText: "#64748b",
-  bg: "#f6f9fc",
-  containerBg: "#ffffff",
-  containerShadow: "0 4px 20px rgba(11,22,40,0.08)",
+  // heading/main text color (use site background color for brand consistency)
+  text: process.env.EMAIL_TEXT_COLOR || "#124660",
+  // muted paragraph text
+  muted: process.env.EMAIL_MUTED_COLOR || "#334155",
+  // footer text color
+  footerText: process.env.EMAIL_FOOTER_TEXT_COLOR || "#64748b",
+  // page background color for the email; use site splash tone for subtle branding
+  bg: process.env.EMAIL_BG_COLOR || "#f4ebd6",
+  // card/container background (typically white for readability)
+  containerBg: process.env.EMAIL_CONTAINER_BG || "#ffffff",
+  containerShadow:
+    process.env.EMAIL_CONTAINER_SHADOW || "0 4px 20px rgba(11,22,40,0.08)",
 };
 
 function stripHtmlToText(html) {
@@ -58,7 +67,7 @@ function stripHtmlToText(html) {
 }
 // Note: PALETTE and stripHtmlToText are defined above once.
 
-function buildEmailTemplate({
+export function buildEmailTemplate({
   title,
   preheader,
   heading,

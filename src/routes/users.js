@@ -169,7 +169,17 @@ router.put("/me", authMiddleware, async (req, res) => {
       if (typeof profilePhoto !== "string") {
         return res.status(400).json({ message: "profilePhoto invalide" });
       }
-      user.profilePhoto = profilePhoto.trim();
+      // If client sent a full Supabase public URL, extract storage path portion
+      // e.g. https://xyz.supabase.co/storage/v1/object/public/avatars/abc.jpg -> avatars/abc.jpg
+      const marker = "/storage/v1/object/public/";
+      let toStore = profilePhoto.trim();
+      try {
+        const idx = toStore.indexOf(marker);
+        if (idx !== -1) {
+          toStore = toStore.slice(idx + marker.length);
+        }
+      } catch (e) {}
+      user.profilePhoto = toStore;
     }
 
     await user.save();

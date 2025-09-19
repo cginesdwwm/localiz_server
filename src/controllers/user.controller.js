@@ -91,18 +91,13 @@ export const register = async (req, res) => {
       password,
     } = req.body;
 
-    // Validation explicite des champs obligatoires pour renvoyer des erreurs claires
+    // Required fields for the registration flow
     const missing = [];
-    if (!firstName) missing.push("firstName");
-    if (!lastName) missing.push("lastName");
     if (!username) missing.push("username");
     if (!email) missing.push("email");
     if (!password) missing.push("password");
-    // Ces champs sont requis par le schéma TempUser
-    if (!phone) missing.push("phone");
-    if (!postalCode) missing.push("postalCode");
     if (!birthday) missing.push("birthday");
-    if (!gender) missing.push("gender");
+    if (!agreeToTerms) missing.push("agreeToTerms");
 
     if (missing.length > 0) {
       return res.status(400).json({
@@ -119,20 +114,16 @@ export const register = async (req, res) => {
       });
     }
 
-    // Vérification des champs obligatoires
-    if (!firstName || !lastName || !username || !email || !password) {
-      return res.status(400).json({ message: "Champs requis manquants" });
-    }
+    // Capitalisation des noms et prénoms avant validation (only if provided)
+    const capitalizedFirstName = firstName
+      ? capitalizeName(firstName)
+      : undefined;
+    const capitalizedLastName = lastName ? capitalizeName(lastName) : undefined;
 
-    // Capitalisation des noms et prénoms avant validation
-    const capitalizedFirstName = capitalizeName(firstName);
-    const capitalizedLastName = capitalizeName(lastName);
-
-    // Validation des mots interdits :
-    // Pour les noms et prénoms, on utilise l'expression régulière pour n'empêcher que les mots entiers.
+    // Validation des mots interdits pour les noms (only if provided)
     if (
-      badWordsRegex.test(capitalizedFirstName) ||
-      badWordsRegex.test(capitalizedLastName)
+      (capitalizedFirstName && badWordsRegex.test(capitalizedFirstName)) ||
+      (capitalizedLastName && badWordsRegex.test(capitalizedLastName))
     ) {
       return res.status(400).json({
         message: "Votre nom ou prénom contient un mot interdit.",
@@ -158,9 +149,15 @@ export const register = async (req, res) => {
       ]);
 
     if (emailExists || usernameExists) {
-      return res
-        .status(400)
-        .json({ message: "Email ou nom d'utilisateur déjà utilisé" });
+      if (emailExists && usernameExists) {
+        return res
+          .status(400)
+          .json({ message: "L'email et le pseudo sont déjà utilisés." });
+      }
+      if (emailExists) {
+        return res.status(400).json({ message: "L'email est déjà utilisé." });
+      }
+      return res.status(400).json({ message: "Le pseudo est déjà utilisé." });
     } else if (pendingEmail || pendingUsername) {
       return res.status(400).json({
         message:
@@ -168,7 +165,7 @@ export const register = async (req, res) => {
       });
     }
 
-    // Vérification de l'existence du téléphone
+    // Vérification de l'existence du téléphone (only if provided)
     if (phone) {
       const phoneExists = await User.findOne({ phone });
       if (phoneExists) {
@@ -203,15 +200,16 @@ export const register = async (req, res) => {
 
     // Création et sauvegarde de l'utilisateur temporaire
     const tempUser = new TempUser({
-      firstName: capitalizedFirstName,
-      lastName: capitalizedLastName,
+      // Use capitalized names only if provided
+      ...(capitalizedFirstName ? { firstName: capitalizedFirstName } : {}),
+      ...(capitalizedLastName ? { lastName: capitalizedLastName } : {}),
       username,
       email,
-      phone,
-      postalCode,
-      city,
+      ...(phone ? { phone } : {}),
+      ...(postalCode ? { postalCode } : {}),
+      ...(city ? { city } : {}),
       birthday: birthday ? new Date(birthday) : undefined,
-      gender,
+      ...(gender ? { gender } : {}),
       agreeToTerms: !!agreeToTerms,
       password: hashedPassword,
       token,
