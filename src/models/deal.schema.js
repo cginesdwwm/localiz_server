@@ -43,7 +43,18 @@ const dealSchema = new mongoose.Schema(
 
     // Métadonnées et liens
     author: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    tags: { type: [String], default: [] },
+    tag: {
+      type: String,
+      enum: [
+        "Promos",
+        "Évènements",
+        "Écologie",
+        "Food et boisson",
+        "Initiatives citoyennes",
+        "Autres",
+      ],
+      required: true,
+    },
     status: {
       type: String,
       enum: ["open", "hidden", "cancelled"],

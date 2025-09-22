@@ -8,7 +8,7 @@ export async function getDeals(req, res) {
 export async function getDealById(req, res) {
   const { id } = req.params;
   const doc = await Deal.findById(id).populate("author", "username email");
-  if (!doc) return res.status(404).json({ message: "Deal not found" });
+  if (!doc) return res.status(404).json({ message: "Bon plan introuvable" });
   res.json(doc);
 }
 
@@ -23,7 +23,7 @@ export async function createDeal(req, res) {
     location,
     accessConditions,
     website,
-    tags,
+    tag,
   } = req.body;
 
   // Validation minimale côté serveur
@@ -40,7 +40,7 @@ export async function createDeal(req, res) {
     location: location || {},
     accessConditions: accessConditions || null,
     website: website || null,
-    tags: Array.isArray(tags) ? tags : tags ? [tags] : [],
+    tag,
     author: req.user._id,
     description,
   };
@@ -57,12 +57,18 @@ export async function updateDeal(req, res) {
   if (updateData.startDate)
     updateData.startDate = new Date(updateData.startDate);
   if (updateData.endDate) updateData.endDate = new Date(updateData.endDate);
-  if (updateData.tags && !Array.isArray(updateData.tags))
-    updateData.tags = [updateData.tags];
+  // Accept legacy `tags` by taking the first value, but prefer `tag`
+  if (updateData.tags) {
+    updateData.tag = Array.isArray(updateData.tags)
+      ? updateData.tags[0]
+      : updateData.tags;
+    delete updateData.tags;
+  }
 
   // Vérifier existence
   const existing = await Deal.findById(id);
-  if (!existing) return res.status(404).json({ message: "Deal not found" });
+  if (!existing)
+    return res.status(404).json({ message: "Bon plan introuvable" });
 
   // Autoriser seulement l'auteur ou un admin
   const userId = req.user?._id?.toString();
@@ -78,7 +84,8 @@ export async function updateDeal(req, res) {
 export async function deleteDeal(req, res) {
   const { id } = req.params;
   const existing = await Deal.findById(id);
-  if (!existing) return res.status(404).json({ message: "Deal not found" });
+  if (!existing)
+    return res.status(404).json({ message: "Bon plan introuvable" });
 
   const userId = req.user?._id?.toString();
   const authorId = existing.author?.toString();
@@ -87,5 +94,5 @@ export async function deleteDeal(req, res) {
   }
 
   await existing.remove();
-  res.json({ message: "Deal deleted" });
+  res.json({ message: "Bon plan supprimé" });
 }

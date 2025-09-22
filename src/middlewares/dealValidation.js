@@ -1,69 +1,68 @@
 import { body, validationResult } from "express-validator";
+import { DEAL_TAGS } from "../config/deal_tags.js";
 
 export const dealCreateValidation = [
   // Fields sent by the AddDealForm
   body("image")
     .exists()
-    .withMessage("Image is required")
+    .withMessage("Image requise")
     .isString()
     .bail()
     .notEmpty()
-    .withMessage("Image is required"),
+    .withMessage("Image requise"),
   body("title")
     .exists()
-    .withMessage("Title is required")
+    .withMessage("Titre requis")
     .isString()
     .isLength({ min: 3 })
-    .withMessage("Title too short"),
+    .withMessage("Titre trop court"),
   body("startDate")
     .exists()
-    .withMessage("startDate is required")
+    .withMessage("Date de début requise")
     .isISO8601()
     .toDate(),
   body("endDate").optional({ nullable: true }).isISO8601().toDate(),
 
   // Location: form provides locationName, address, zone -> server receives location.address at minimum (form requires address)
-  body("location").exists().withMessage("Location object required").isObject(),
-  body("location.address")
-    .exists()
-    .withMessage("Address is required")
-    .isString(),
+  body("location").exists().withMessage("Objet 'location' requis").isObject(),
+  body("location.address").exists().withMessage("Adresse requise").isString(),
   body("location.name").optional().isString(),
   body("location.zone").optional().isString(),
 
   // Access conditions come as an object with a 'type' (required) and optional price when type === 'paid'
   body("accessConditions")
     .exists()
-    .withMessage("accessConditions required")
+    .withMessage("Conditions d'accès requises")
     .isObject(),
   body("accessConditions.type")
     .exists()
-    .withMessage("accessConditions.type required")
+    .withMessage("Type de conditions d'accès requis")
     .isIn(["free", "paid", "reservation", "reduction"])
-    .withMessage("Invalid accessConditions.type"),
+    .withMessage("Type de conditions d'accès invalide"),
   body("accessConditions.price")
     .if(body("accessConditions.type").equals("paid"))
     .exists()
-    .withMessage("Price required for paid access")
+    .withMessage("Prix requis pour l'accès payant")
     .isFloat({ gt: 0 })
-    .withMessage("Price must be a positive number"),
+    .withMessage("Le prix doit être un nombre positif"),
 
   // Website optional
-  body("website").optional().isURL().withMessage("Website must be a valid URL"),
-  body("images").optional().isArray().withMessage("images must be an array"),
+  body("website").optional().isURL().withMessage("URL invalide"),
+  body("images")
+    .optional()
+    .isArray()
+    .withMessage("Le champ images doit être un tableau"),
   body("images.*")
     .optional()
     .isString()
-    .withMessage("each image must be a URL string"),
+    .withMessage("Chaque image doit être une URL (texte)"),
   body("images").custom((value, { req }) => {
     const countExtras = Array.isArray(value) ? value.length : 0;
     const hasPrimary =
       typeof req.body.image === "string" && req.body.image.trim() !== "";
     const total = countExtras + (hasPrimary ? 1 : 0);
     if (total > 4) {
-      throw new Error(
-        "A maximum of 4 images is allowed (including primary image)"
-      );
+      throw new Error("Maximum 4 images autorisées (image principale incluse)");
     }
     return true;
   }),
@@ -71,10 +70,17 @@ export const dealCreateValidation = [
   // Description required and enforced >= 20 chars (form requires this)
   body("description")
     .exists()
-    .withMessage("Description is required")
+    .withMessage("Description requise")
     .isString()
     .isLength({ min: 20 })
-    .withMessage("Description must be at least 20 characters"),
+    .withMessage("La description doit contenir au moins 20 caractères"),
+
+  // Tag: required single select from predefined values
+  body("tag")
+    .exists()
+    .withMessage("Catégorie requise")
+    .isIn(DEAL_TAGS)
+    .withMessage("Tag invalide"),
 
   // result check
   (req, res, next) => {
@@ -139,6 +145,8 @@ export const dealUpdateValidation = [
     .isString()
     .isLength({ min: 20 })
     .withMessage("Description must be at least 20 characters"),
+
+  body("tag").optional().isIn(DEAL_TAGS).withMessage("Tag invalide"),
 
   (req, res, next) => {
     const errors = validationResult(req);

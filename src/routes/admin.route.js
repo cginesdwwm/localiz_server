@@ -9,6 +9,7 @@ import express from "express";
 import User from "../models/user.schema.js";
 import Deal from "../models/deal.schema.js";
 import Listing from "../models/listing.schema.js";
+import Category from "../models/category.schema.js";
 
 // Importation correcte des fonctions de middleware nommées
 import { authMiddleware, isAdmin } from "../middlewares/authMiddleware.js";
@@ -130,6 +131,113 @@ router.get("/overview", async (req, res) => {
     dealsSeries,
     listingsSeries,
   });
+});
+// Catégories (listing & deal)
+// Récupérer toutes les catégories organisées par type
+router.get("/categories", async (req, res) => {
+  const [listing, deal] = await Promise.all([
+    Category.find({ type: "listing" }).sort({ order: 1, name: 1 }),
+    Category.find({ type: "deal" }).sort({ order: 1, name: 1 }),
+  ]);
+  res.json({ listing, deal });
+});
+
+// Créer une catégorie
+router.post("/categories", async (req, res) => {
+  const { type, name, active } = req.body;
+  if (!type || !["listing", "deal"].includes(type)) {
+    return res.status(400).json({ message: "Type invalide (listing ou deal)" });
+  }
+  if (!name || typeof name !== "string" || !name.trim()) {
+    return res.status(400).json({ message: "Nom de catégorie requis" });
+  }
+  const last = await Category.find({ type }).sort({ order: -1 }).limit(1);
+  const nextOrder = last.length ? (last[0].order || 0) + 1 : 0;
+  try {
+    const cat = await Category.create({
+      type,
+      name: name.trim(),
+      active: active !== undefined ? !!active : true,
+      order: nextOrder,
+    });
+    res.status(201).json({ message: "Catégorie créée", category: cat });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res
+        .status(409)
+        .json({ message: "Cette catégorie existe déjà pour ce type" });
+    }
+    res.status(500).json({ message: "Erreur lors de la création" });
+  }
+});
+
+// Mettre à jour une catégorie (nom, active)
+router.put("/categories/:id", async (req, res) => {
+  const { name, active } = req.body;
+  const update = {};
+  if (name !== undefined) {
+    if (typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({ message: "Nom invalide" });
+    }
+    update.name = name.trim();
+  }
+  if (active !== undefined) update.active = !!active;
+
+  try {
+    const cat = await Category.findByIdAndUpdate(req.params.id, update, {
+      new: true,
+      runValidators: true,
+    });
+    if (!cat) return res.status(404).json({ message: "Catégorie introuvable" });
+    res.json({ message: "Catégorie mise à jour", category: cat });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res
+        .status(409)
+        .json({ message: "Cette catégorie existe déjà pour ce type" });
+    }
+    res.status(500).json({ message: "Erreur lors de la mise à jour" });
+  }
+});
+
+// Supprimer une catégorie
+router.delete("/categories/:id", async (req, res) => {
+  const deleted = await Category.findByIdAndDelete(req.params.id);
+  if (!deleted)
+    return res.status(404).json({ message: "Catégorie introuvable" });
+  res.json({ message: "Catégorie supprimée" });
+});
+
+// Réordonner une catégorie (monter/descendre)
+router.patch("/categories/:id/move", async (req, res) => {
+  const { direction } = req.body; // 'up' | 'down'
+  if (!direction || !["up", "down"].includes(direction)) {
+    return res.status(400).json({ message: "Direction invalide" });
+  }
+  const cat = await Category.findById(req.params.id);
+  if (!cat) return res.status(404).json({ message: "Catégorie introuvable" });
+
+  const delta = direction === "up" ? -1 : 1;
+  const neighbor = await Category.findOne({
+    type: cat.type,
+    order: { [delta === -1 ? "$lt" : "$gt"]: cat.order },
+  })
+    .sort({ order: delta === -1 ? -1 : 1 })
+    .limit(1);
+
+  if (!neighbor) {
+    return res.json({
+      message: "Aucun réordonnancement nécessaire",
+      category: cat,
+    });
+  }
+
+  const currentOrder = cat.order || 0;
+  const neighborOrder = neighbor.order || 0;
+  cat.order = neighborOrder;
+  neighbor.order = currentOrder;
+  await Promise.all([cat.save(), neighbor.save()]);
+  res.json({ message: "Ordre mis à jour", category: cat });
 });
 // Activité récente: derniers utilisateurs inscrits, bons plans et annonces (jusqu'à 25)
 router.get("/recent", async (req, res) => {

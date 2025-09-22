@@ -8,12 +8,13 @@ export async function getListings(req, res) {
 export async function getListingById(req, res) {
   const { id } = req.params;
   const doc = await Listing.findById(id).populate("owner", "username email");
-  if (!doc) return res.status(404).json({ message: "Listing not found" });
+  if (!doc) return res.status(404).json({ message: "Annonce introuvable" });
   res.json(doc);
 }
 
 export async function createListing(req, res) {
-  const { title, images, type, description, location } = req.body;
+  const { title, images, type, description, location, tags, condition } =
+    req.body;
   if (!title || !type)
     return res.status(400).json({ message: "Champs requis manquants" });
 
@@ -23,6 +24,8 @@ export async function createListing(req, res) {
     type,
     description: description || null,
     location: location || {},
+    tags: Array.isArray(tags) ? tags : [],
+    condition: condition || undefined,
     owner: req.user._id,
   };
 
@@ -33,7 +36,8 @@ export async function createListing(req, res) {
 export async function updateListing(req, res) {
   const { id } = req.params;
   const existing = await Listing.findById(id);
-  if (!existing) return res.status(404).json({ message: "Listing not found" });
+  if (!existing)
+    return res.status(404).json({ message: "Annonce introuvable" });
 
   const userId = req.user?._id?.toString();
   const ownerId = existing.owner?.toString();
@@ -50,7 +54,8 @@ export async function updateListing(req, res) {
 export async function deleteListing(req, res) {
   const { id } = req.params;
   const existing = await Listing.findById(id);
-  if (!existing) return res.status(404).json({ message: "Listing not found" });
+  if (!existing)
+    return res.status(404).json({ message: "Annonce introuvable" });
 
   const userId = req.user?._id?.toString();
   const ownerId = existing.owner?.toString();
@@ -61,5 +66,5 @@ export async function deleteListing(req, res) {
   }
 
   await existing.remove();
-  res.json({ message: "Listing deleted" });
+  res.json({ message: "Annonce supprimée" });
 }
