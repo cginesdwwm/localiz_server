@@ -2,7 +2,13 @@ import { body, validationResult } from "express-validator";
 
 export const dealCreateValidation = [
   // Fields sent by the AddDealForm
-  body("image").exists().withMessage("Image is required").isString(),
+  body("image")
+    .exists()
+    .withMessage("Image is required")
+    .isString()
+    .bail()
+    .notEmpty()
+    .withMessage("Image is required"),
   body("title")
     .exists()
     .withMessage("Title is required")
@@ -44,6 +50,23 @@ export const dealCreateValidation = [
 
   // Website optional
   body("website").optional().isURL().withMessage("Website must be a valid URL"),
+  body("images").optional().isArray().withMessage("images must be an array"),
+  body("images.*")
+    .optional()
+    .isString()
+    .withMessage("each image must be a URL string"),
+  body("images").custom((value, { req }) => {
+    const countExtras = Array.isArray(value) ? value.length : 0;
+    const hasPrimary =
+      typeof req.body.image === "string" && req.body.image.trim() !== "";
+    const total = countExtras + (hasPrimary ? 1 : 0);
+    if (total > 4) {
+      throw new Error(
+        "A maximum of 4 images is allowed (including primary image)"
+      );
+    }
+    return true;
+  }),
 
   // Description required and enforced >= 20 chars (form requires this)
   body("description")
@@ -92,6 +115,25 @@ export const dealUpdateValidation = [
     .withMessage("Price must be a positive number"),
 
   body("website").optional().isURL().withMessage("Website must be a valid URL"),
+  body("images").optional().isArray().withMessage("images must be an array"),
+  body("images.*")
+    .optional()
+    .isString()
+    .withMessage("each image must be a URL string"),
+  body("images")
+    .optional()
+    .custom((value, { req }) => {
+      const countExtras = Array.isArray(value) ? value.length : 0;
+      const hasPrimary =
+        typeof req.body.image === "string" && req.body.image.trim() !== "";
+      const total = countExtras + (hasPrimary ? 1 : 0);
+      if (total > 4) {
+        throw new Error(
+          "A maximum of 4 images is allowed (including primary image)"
+        );
+      }
+      return true;
+    }),
   body("description")
     .optional()
     .isString()

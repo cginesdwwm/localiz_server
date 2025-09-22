@@ -15,6 +15,7 @@ export async function getDealById(req, res) {
 export async function createDeal(req, res) {
   const {
     image,
+    images,
     title,
     startDate,
     endDate,
@@ -32,6 +33,7 @@ export async function createDeal(req, res) {
 
   const payload = {
     image,
+    images: Array.isArray(images) ? images : [],
     title,
     startDate: new Date(startDate),
     endDate: endDate ? new Date(endDate) : null,
@@ -50,6 +52,8 @@ export async function createDeal(req, res) {
 export async function updateDeal(req, res) {
   const { id } = req.params;
   const updateData = { ...req.body };
+  if (updateData.images && !Array.isArray(updateData.images))
+    updateData.images = [updateData.images];
   if (updateData.startDate)
     updateData.startDate = new Date(updateData.startDate);
   if (updateData.endDate) updateData.endDate = new Date(updateData.endDate);

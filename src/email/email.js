@@ -27,7 +27,7 @@ const logoPath = path.join(
   "src",
   "assets",
   "images",
-  "logo.png"
+  "logo.webp"
 );
 
 // Use env if provided; otherwise leave undefined so the code can fall back to the bundled local logo file

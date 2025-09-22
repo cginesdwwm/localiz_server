@@ -8,6 +8,8 @@ const dealSchema = new mongoose.Schema(
   {
     // Image principale (URL)
     image: { type: String, required: true },
+    // Images supplémentaires (URLs) — max 4 côté client
+    images: { type: [String], default: [] },
 
     // Titre de l'événement / promo
     title: { type: String, required: true, trim: true },
@@ -48,10 +50,6 @@ const dealSchema = new mongoose.Schema(
       default: "open",
     },
     likes: {
-      type: [{ type: Schema.Types.ObjectId, ref: "User" }],
-      default: [],
-    },
-    viewedBy: {
       type: [{ type: Schema.Types.ObjectId, ref: "User" }],
       default: [],
     },

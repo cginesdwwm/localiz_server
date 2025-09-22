@@ -13,10 +13,6 @@ const blogSchema = new mongoose.Schema(
     content: { type: String, required: true, minLength: 10 },
     image: { type: String, default: null },
     author: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    viewedBy: {
-      type: [{ type: Schema.Types.ObjectId, ref: "User" }],
-      default: [],
-    },
   },
   {
     timestamps: true,
