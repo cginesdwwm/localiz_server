@@ -1,5 +1,6 @@
 import express from "express";
 import Postal from "../models/postalcode.schema.js";
+import Category from "../models/category.schema.js";
 
 // Use global fetch when available (Node 18+). If not available, try a dynamic
 // import of `node-fetch` at runtime so the package is optional for modern Node.
@@ -92,6 +93,29 @@ router.get("/postal-to-town/:postalCode", async (req, res) => {
     res.json({ town: place || null, source: "remote" });
   } catch (err) {
     res.status(500).json({ town: null, error: err.message });
+  }
+});
+
+// GET /utils/categories
+// Public list of active categories for forms (listings & deals)
+router.get("/categories", async (req, res) => {
+  try {
+    const [listing, deal] = await Promise.all([
+      Category.find({ type: "listing", active: true })
+        .sort({ order: 1, name: 1 })
+        .select("name order active"),
+      Category.find({ type: "deal", active: true })
+        .sort({ order: 1, name: 1 })
+        .select("name order active"),
+    ]);
+    res.json({
+      listing: listing.map((c) => c.name),
+      deal: deal.map((c) => c.name),
+    });
+  } catch (e) {
+    res
+      .status(500)
+      .json({ message: "Erreur lors du chargement des catégories" });
   }
 });
 
