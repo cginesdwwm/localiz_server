@@ -1,5 +1,4 @@
 /*
-    server/src/routes/index.js
     - Ce fichier est le point d'entrée pour toutes les routes de l'API.
     - Il monte chaque routeur sur le chemin approprié (ex: /api/auth, /api/users).
 */
@@ -7,14 +6,13 @@
 import express from "express";
 
 import userRoutes from "./user.route.js";
-import blogRoutes from "./blog.route.js";
-import ratingRoutes from "./rating.route.js";
 import adminRoutes from "./admin.route.js";
-import usersRoutes from "./users.js"; // Import du routeur users
+import usersRoutes from "./users.js";
 import dealRoutes from "./deal.route.js";
 import listingRoutes from "./listing.route.js";
 import utilsRoutes from "./utils.js";
 import contactRoutes from "./contact.route.js";
+import ratingRoutes from "./rating.route.js";
 
 import { authMiddleware, isAdmin } from "../middlewares/authMiddleware.js";
 
@@ -26,7 +24,6 @@ router.get("/health", (req, res) => {
 });
 
 // Routes publiques
-router.use("/blog", blogRoutes);
 router.use("/user", userRoutes);
 router.use("/utils", utilsRoutes);
 router.use("/contact", contactRoutes);
