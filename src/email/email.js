@@ -1,3 +1,11 @@
+// ======================================================================
+// Email helpers for Localiz
+// - Transport setup (Nodemailer)
+// - Branding (logo resolution with safe formats)
+// - Shared HTML template (buildEmailTemplate)
+// - Transactional email senders (signup, reset, contact, etc.)
+// ======================================================================
+
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -5,6 +13,10 @@ import path from "path";
 
 dotenv.config();
 
+// ----------------------------------------------------------------------
+// Transporter configuration (Gmail)
+// NOTE: Set EMAIL_USER and EMAIL_PASS in environment variables.
+// ----------------------------------------------------------------------
 const transporter = nodemailer.createTransport({
   service: "Gmail",
   auth: {
@@ -19,21 +31,64 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
   );
 }
 
-// Helper: unified HTML email template
-// Path to client logo (relative to project root). We'll attach it inline if present.
-const logoPath = path.join(
-  process.cwd(),
-  "client",
-  "src",
-  "assets",
-  "images",
-  "logo.webp"
-);
+// ----------------------------------------------------------------------
+// Branding / logo resolution
+// - Prefer PNG/JPG over WEBP to avoid transparency issues in email clients
+// - Can be disabled globally via EMAIL_DISABLE_LOGO=true
+// - Uses EMAIL_LOGO_URL or PUBLIC_LOGO_URL if provided
+// ----------------------------------------------------------------------
+// Resolve a logo image compatible with email clients (prefer PNG/JPG over WEBP)
+// We'll attach it inline (CID) if a local file exists and no EMAIL_LOGO_URL is set.
+// Note: some email clients (notably Outlook) render transparency poorly; prefer a flat PNG/JPG for emails.
+const candidateLogos = [
+  path.join(process.cwd(), "client", "public", "logo-email.png"),
+  path.join(process.cwd(), "client", "public", "logo.png"),
+  path.join(process.cwd(), "client", "public", "logo.jpg"),
+  path.join(
+    process.cwd(),
+    "client",
+    "src",
+    "assets",
+    "images",
+    "logo-email.png"
+  ),
+  path.join(process.cwd(), "client", "src", "assets", "images", "logo.png"),
+  path.join(process.cwd(), "client", "src", "assets", "images", "logo.jpg"),
+  // Avoid WEBP for emails: many clients mishandle it, especially with transparency
+];
+const resolvedLocalLogoPath = candidateLogos.find((p) => {
+  try {
+    return fs.existsSync(p);
+  } catch {
+    return false;
+  }
+});
 
-// Use env if provided; otherwise leave undefined so the code can fall back to the bundled local logo file
-const publicLogoUrl = process.env.EMAIL_LOGO_URL;
+// Allow disabling logos globally across all emails (set EMAIL_DISABLE_LOGO=true)
+const LOGO_DISABLED =
+  String(process.env.EMAIL_DISABLE_LOGO || "").toLowerCase() === "true";
 
-// Palette used across email templates (keeps parity with client theme variables)
+// Prefer explicit EMAIL_LOGO_URL; else allow PUBLIC_LOGO_URL; else no default (avoid WEBP defaults in emails)
+// Rationale: many email clients mishandle WEBP and PNG alpha transparency; use an email-safe asset instead.
+let publicLogoUrl = LOGO_DISABLED
+  ? null
+  : process.env.EMAIL_LOGO_URL || process.env.PUBLIC_LOGO_URL || null;
+// Skip WEBP logos for better compatibility/transparency handling
+if (publicLogoUrl && /\.webp(\?|#|$)/i.test(publicLogoUrl)) {
+  console.warn(
+    "EMAIL_LOGO_URL/PUBLIC_LOGO_URL points to a WEBP; skipping logo to avoid email client transparency issues. Provide a PNG/JPG instead."
+  );
+  publicLogoUrl = null;
+}
+
+// Only expose a logoPath when logos aren't disabled
+const logoPath = LOGO_DISABLED ? null : resolvedLocalLogoPath;
+
+// ----------------------------------------------------------------------
+// Visual palette for emails
+// - Mirrors client theme variables (see client/src/index.css)
+// - Can be overridden with EMAIL_* color env vars
+// ----------------------------------------------------------------------
 // Values mirror `client/src/index.css` defaults (can be overridden via env)
 const PALETTE = {
   // primary CTA color (matches --btn-cta-bg)
@@ -125,9 +180,9 @@ export function buildEmailTemplate({
         <div style="display:flex;align-items:center;justify-content:center;gap:0;padding:0;">
           ${
             logoUrl
-              ? `<img src="${logoUrl}" alt="Localiz" style="max-width:225px;width:100%;height:auto;display:block;margin:0 auto;"/>`
+              ? `<span style="background:#ffffff;display:inline-block;padding:6px 10px;border-radius:12px;"><img src="${logoUrl}" alt="Localiz" style="max-width:225px;width:100%;height:auto;display:block;margin:0 auto;background:#ffffff;"/></span>`
               : logoCid
-              ? `<img src="cid:${logoCid}" alt="Localiz" style="max-width:225px;width:100%;height:auto;display:block;margin:0 auto;"/>`
+              ? `<span style="background:#ffffff;display:inline-block;padding:6px 10px;border-radius:12px;"><img src="cid:${logoCid}" alt="Localiz" style="max-width:225px;width:100%;height:auto;display:block;margin:0 auto;background:#ffffff;"/></span>`
               : `<div class="logo" style="font-size:20px;text-align:center;">Localiz</div>`
           }
         </div>
@@ -156,7 +211,11 @@ export function buildEmailTemplate({
   `;
 }
 
-// Fonction pour envoyer l'email de confirmation d'inscription
+// ----------------------------------------------------------------------
+// Signup confirmation email
+// Input: (email: string, token: string)
+// Sends a verification link to confirm a user's email address.
+// ----------------------------------------------------------------------
 export const sendConfirmationEmail = async (email, token) => {
   const base = (process.env.CLIENT_URL || "").replace(/\/+$/g, "");
   const confirmUrl = `${base}/confirm-email?token=${token}`;
@@ -164,7 +223,7 @@ export const sendConfirmationEmail = async (email, token) => {
     from: process.env.EMAIL_USER,
     to: email,
     subject: "Confirmez votre e-mail — Localiz",
-    text: "Merci d'avoir créé un compte Localiz. Pour valider votre adresse e-mail, cliquez sur le lien ci-dessous.", // Added text option
+    text: "Merci d'avoir créé un compte Localiz. Pour valider votre adresse e-mail, cliquez sur le lien ci-dessous.",
   };
 
   if (publicLogoUrl) {
@@ -179,7 +238,7 @@ export const sendConfirmationEmail = async (email, token) => {
       logoUrl: publicLogoUrl,
       supportEmail: process.env.SUPPORT_EMAIL || "support@localiz.fr",
     });
-  } else if (fs.existsSync(logoPath)) {
+  } else if (logoPath) {
     mailOptions.attachments = [
       {
         filename: path.basename(logoPath),
@@ -225,7 +284,11 @@ export const sendConfirmationEmail = async (email, token) => {
   }
 };
 
-// Fonction pour envoyer l'email d'inscription réussie
+// ----------------------------------------------------------------------
+// Signup success email
+// Input: (email: string, username?: string)
+// Notifies the user their account is activated and links to login.
+// ----------------------------------------------------------------------
 export const sendSuccessEmail = async (email, username) => {
   const base = (process.env.CLIENT_URL || "").replace(/\/+$/g, "");
   const loginUrl = `${base}/login`;
@@ -235,7 +298,7 @@ export const sendSuccessEmail = async (email, username) => {
     subject: "Bienvenue — compte activé",
     text: `Bonjour ${
       username || "utilisateur"
-    },\n\nVotre inscription a été confirmée avec succès. Vous pouvez maintenant vous connecter à votre compte Localiz.`, // Added text option
+    },\n\nVotre inscription a été confirmée avec succès. Vous pouvez maintenant vous connecter à votre compte Localiz.`,
   };
   if (publicLogoUrl) {
     mailOptions.html = buildEmailTemplate({
@@ -248,7 +311,7 @@ export const sendSuccessEmail = async (email, username) => {
       logoUrl: publicLogoUrl,
       supportEmail: process.env.SUPPORT_EMAIL || "support@localiz.fr",
     });
-  } else if (fs.existsSync(logoPath)) {
+  } else if (logoPath) {
     mailOptions.attachments = [
       {
         filename: path.basename(logoPath),
@@ -281,17 +344,20 @@ export const sendSuccessEmail = async (email, username) => {
   return transporter.sendMail(mailOptions);
 };
 
-// Fonction pour envoyer l'email de réinitialisation de mot de passe
+// ----------------------------------------------------------------------
+// Password reset email
+// Input: (toEmail: string, token: string)
+// Sends a secure link to reset the user's password.
+// ----------------------------------------------------------------------
 export const sendResetPasswordEmail = async (toEmail, token) => {
   const base = (process.env.CLIENT_URL || "").replace(/\/+$/g, "");
   const resetUrl = `${base}/reset-password/${token}`;
-  // buildEmailTemplate will be called below when composing mailOptions
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: toEmail,
     subject: "Réinitialisez votre mot de passe — Localiz",
-    text: "Instructions pour réinitialiser votre mot de passe. Cliquez sur le lien ci-dessous.", // Added text option
+    text: "Instructions pour réinitialiser votre mot de passe. Cliquez sur le lien ci-dessous.",
   };
   if (publicLogoUrl) {
     mailOptions.html = buildEmailTemplate({
@@ -305,7 +371,7 @@ export const sendResetPasswordEmail = async (toEmail, token) => {
       logoUrl: publicLogoUrl,
       supportEmail: process.env.SUPPORT_EMAIL || "support@localiz.fr",
     });
-  } else if (fs.existsSync(logoPath)) {
+  } else if (logoPath) {
     mailOptions.attachments = [
       {
         filename: path.basename(logoPath),
@@ -340,7 +406,11 @@ export const sendResetPasswordEmail = async (toEmail, token) => {
   await transporter.sendMail(mailOptions);
 };
 
-// Fonction pour envoyer l'email de confirmation de réinitialisation de mot de passe
+// ----------------------------------------------------------------------
+// Password reset success email
+// Input: (email: string, username?: string)
+// Confirms the user's password was changed.
+// ----------------------------------------------------------------------
 export const sendPasswordResetSuccessEmail = async (email, username) => {
   const base = (process.env.CLIENT_URL || "").replace(/\/+$/g, "");
   const loginUrl = `${base}/login`;
@@ -348,7 +418,7 @@ export const sendPasswordResetSuccessEmail = async (email, username) => {
     from: process.env.EMAIL_USER,
     to: email,
     subject: "Votre mot de passe a été mis à jour — Localiz",
-    text: "Votre mot de passe a été modifié avec succès. Si vous n'êtes pas à l'origine de ce changement, contactez le support immédiatement.", // Added text option
+    text: "Votre mot de passe a été modifié avec succès. Si vous n'êtes pas à l'origine de ce changement, contactez le support immédiatement.",
   };
   if (publicLogoUrl) {
     mailOptions.html = buildEmailTemplate({
@@ -361,7 +431,7 @@ export const sendPasswordResetSuccessEmail = async (email, username) => {
       logoUrl: publicLogoUrl,
       supportEmail: process.env.SUPPORT_EMAIL || "support@localiz.fr",
     });
-  } else if (fs.existsSync(logoPath)) {
+  } else if (logoPath) {
     mailOptions.attachments = [
       {
         filename: path.basename(logoPath),
@@ -392,4 +462,89 @@ export const sendPasswordResetSuccessEmail = async (email, username) => {
   }
 
   await transporter.sendMail(mailOptions);
+};
+
+// ----------------------------------------------------------------------
+// Contact form — support notification (plain text)
+// Input: { name, email, subject, message }
+// Sends a minimal notification to SUPPORT_EMAIL with reply-to user.
+// ----------------------------------------------------------------------
+export const sendContactSupportNotification = async ({
+  name,
+  email,
+  subject,
+  message,
+}) => {
+  const supportEmail = process.env.SUPPORT_EMAIL || "support@localiz.fr";
+  const textBody = [
+    "Nouveau message de contact",
+    `Nom: ${name || ""}`,
+    `Email: ${email || ""}`,
+    `Objet: ${subject || "(sans objet)"}`,
+    "",
+    "Message:",
+    String(message || ""),
+  ].join("\n");
+
+  return transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to: supportEmail,
+    subject: `Nouveau message de contact: ${subject || "(sans objet)"}`,
+    replyTo: email,
+    text: textBody,
+  });
+};
+
+// ----------------------------------------------------------------------
+// Contact form — user acknowledgment (no logo)
+// Input: { toEmail, name, subject, message }
+// Sends a friendly confirmation to the user without a header image.
+// ----------------------------------------------------------------------
+export const sendContactAcknowledgment = async ({
+  toEmail,
+  name,
+  subject,
+  message,
+}) => {
+  const base = (process.env.CLIENT_URL || "").replace(/\/+$/g, "");
+  const supportEmail = process.env.SUPPORT_EMAIL || "support@localiz.fr";
+  const appName = process.env.APP_NAME || "Localiz";
+  const safeMessage = String(message || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br/>");
+
+  const bodyHtml = `<p>Bonjour ${name || ""},</p>
+    <p>Merci d'avoir contacté ${appName}. Notre équipe vous répondra dès que possible.</p>
+    <p><strong>Objet:</strong> ${subject || ""}</p>
+    <p><strong>Votre message:</strong></p>
+    <blockquote style="border-left:3px solid #ccc;margin:8px 0;padding-left:12px;">${safeMessage}</blockquote>
+    ${
+      base
+        ? `<p>Vous pouvez visiter notre site sur <a href="${base}">${base}</a>.</p>`
+        : ""
+    }
+    <p style="margin-top:16px">— L'équipe ${appName}</p>`;
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: toEmail,
+    subject: "Votre message a bien été reçu",
+    replyTo: supportEmail,
+    text: stripHtmlToText(bodyHtml),
+  };
+
+  // Build the acknowledgment email WITHOUT any logo image (no logoUrl/logoCid)
+  mailOptions.html = buildEmailTemplate({
+    title: "Votre message a bien été reçu",
+    preheader: `Nous avons bien reçu votre message — ${appName}`,
+    heading: "Merci, nous revenons vers vous bientôt",
+    bodyHtml,
+    ctaText: base ? "Ouvrir Localiz" : undefined,
+    ctaUrl: base || undefined,
+    supportEmail,
+  });
+
+  return transporter.sendMail(mailOptions);
 };

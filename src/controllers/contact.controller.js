@@ -1,50 +1,49 @@
 import Contact from "../models/contact.schema.js";
-import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import {
+  sendContactSupportNotification,
+  sendContactAcknowledgment,
+} from "../email/email.js";
 
 dotenv.config();
-
-const transporter = nodemailer.createTransport({
-  service: "Gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
 export const postContact = async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
 
-    const contact = await Contact.create({ name, email, subject, message });
+    const contact = await Contact.create({
+      name,
+      email,
+      subject,
+      message,
+    });
 
-    // Send notification email to support (best-effort)
+    // Send notification email to support (best-effort, non-blocking)
     try {
-      const supportEmail = process.env.SUPPORT_EMAIL || "support@localiz.fr";
-      const clientUrl = (process.env.CLIENT_URL || "").replace(/\/+$/g, "");
-      const bodyHtml = `
-        <div style="font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
-          <h2>Nouveau message de contact</h2>
-          <p><strong>Nom:</strong> ${name}</p>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Objet:</strong> ${subject}</p>
-          <hr/>
-          <div>${message.replace(/\n/g, "<br/>")}</div>
-          <p style="margin-top:12px"><a href="${clientUrl}/admin/messages">Voir les messages</a></p>
-        </div>
-      `;
-
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: supportEmail,
-        subject: `Nouveau message de contact: ${subject}`,
-        html: bodyHtml,
-      };
-
-      await transporter.sendMail(mailOptions);
+      sendContactSupportNotification({
+        name,
+        email,
+        subject,
+        message,
+      }).catch((err) =>
+        console.warn("Failed to send contact notification email:", err.message)
+      );
     } catch (err) {
-      // don't block main response if email fails
       console.warn("Failed to send contact notification email:", err.message);
+    }
+
+    // Send acknowledgment email to the submitter (best-effort, non-blocking)
+    try {
+      sendContactAcknowledgment({
+        toEmail: email,
+        name,
+        subject,
+        message,
+      }).catch((err) =>
+        console.warn("Failed to send acknowledgment email:", err.message)
+      );
+    } catch (err) {
+      console.warn("Failed to send acknowledgment email:", err.message);
     }
 
     res.status(201).json({ ok: true, id: contact._id });

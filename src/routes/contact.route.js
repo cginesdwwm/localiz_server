@@ -49,7 +49,11 @@ router.post(
   rateLimiter({ windowMs: 60 * 60 * 1000, max: 5 }),
   [
     body("name").trim().notEmpty().withMessage("Le nom est requis"),
-    body("email").trim().isEmail().withMessage("Email invalide"),
+    body("email")
+      .trim()
+      .normalizeEmail()
+      .isEmail()
+      .withMessage("Email invalide"),
     body("subject")
       .trim()
       .notEmpty()
